@@ -49,10 +49,16 @@
   .paneel{background:var(--paneel);margin:0 12px;border-radius:0 0 16px 16px;padding:12px;box-shadow:0 4px 0 rgba(0,0,0,.08)}
   .verborgen{display:none !important}
 
-  #bordWrap{position:relative;border-radius:14px;overflow:hidden;
+  #bordWrap{position:relative;border-radius:14px;overflow:hidden;touch-action:none;cursor:grab;
     background:radial-gradient(ellipse at 50% 30%,#B5E271 0%,#8CC152 62%,#7BAF3F 100%);
     box-shadow:inset 0 2px 12px rgba(0,0,0,.14)}
-  #bord{position:absolute;left:0;top:0;width:500px;height:430px;transform-origin:top left}
+  #bordWrap.sleept{cursor:grabbing}
+  #bord{position:absolute;left:0;top:0;width:500px;height:430px;transform-origin:top left;will-change:transform}
+  .bordKnoppen{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;z-index:700}
+  .bordKnop{width:34px;height:34px;border:none;border-radius:50%;background:rgba(255,248,225,.92);
+            color:#5D4037;font-size:17px;font-weight:900;font-family:inherit;cursor:pointer;
+            box-shadow:0 2px 5px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;
+            padding:0;line-height:1}
   .laag{position:absolute;width:0;height:0}
   .laag svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
   .ruit{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scaleY(.5) rotate(45deg);
@@ -173,7 +179,14 @@
 
   <div class="paneel">
     <div id="tab-boerderij">
-      <div id="bordWrap"><div id="bord"></div></div>
+      <div id="bordWrap">
+        <div id="bord"></div>
+        <div class="bordKnoppen">
+          <button class="bordKnop" id="zoomIn" title="Inzoomen">+</button>
+          <button class="bordKnop" id="zoomUit" title="Uitzoomen">−</button>
+          <button class="bordKnop" id="zoomPas" title="Hele boerderij tonen">⤢</button>
+        </div>
+      </div>
       <div class="riemTitel">Sleep naar een akker — of tik erop</div>
       <div class="riem" id="riem"></div>
     </div>
@@ -451,24 +464,26 @@ function geefXp(hoeveel){
 /* ═══════════════════════════════════════════════════════════════════
    6. SPELACTIES
    ═══════════════════════════════════════════════════════════════════ */
-function ploeg(id){
+function ploeg(id, stil){
   const p = state.plots.find(x => x.id === id);
-  if (!p || p.gewas || p.staat !== "wild") return;
+  if (!p || p.gewas || p.staat !== "wild") return false;
   p.staat = "geploegd";
-  popup("Geploegd 🚜", "#6D4C41");
+  if (!stil) popup("Geploegd 🚜", "#6D4C41");
   geefXp(1); naVerandering(p);
+  return true;
 }
 
-function plant(id, type){
+function plant(id, type, stil){
   const p = state.plots.find(x => x.id === id), c = CROPS[type];
-  if (!p || !c || p.gewas) return;
-  if (p.staat !== "geploegd") return popup("Eerst ploegen 🚜", "#E53935");
-  if (state.level < c.level)  return popup("Level " + c.level + " nodig 🔒", "#E53935");
-  if (state.munten < c.kost)  return popup("Te weinig munten", "#E53935");
+  if (!p || !c || p.gewas) return false;
+  if (p.staat !== "geploegd") { if (!stil) popup("Eerst ploegen 🚜", "#E53935"); return false; }
+  if (state.level < c.level)  { if (!stil) popup("Level " + c.level + " nodig 🔒", "#E53935"); return false; }
+  if (state.munten < c.kost)  { if (!stil) popup("Te weinig munten", "#E53935"); return "arm"; }
   state.munten -= c.kost;
   p.gewas = {type, geplant: nu()};
-  popup(c.emoji + " gezaaid  −" + c.kost, "#6D4C41", true);
+  if (!stil) popup(c.emoji + " gezaaid  −" + c.kost, "#6D4C41", true);
   naVerandering(p);
+  return true;
 }
 
 function oogst(id){
@@ -670,12 +685,129 @@ const bordWrap = document.getElementById("bordWrap");
 const velden = new Map();
 let weien = [];
 
+// ── kijkvenster: verschuiven en zoomen ───────────────────────────
+const kijk = {x:0, y:0, z:1};      // z = 1 is "hele boerderij past"
+let pasmaat = 1;
+const Z_MIN = 1, Z_MAX = 2.6;
+
 function schaalBord(){
-  const s = Math.min(1, (bordWrap.clientWidth || BORD_B) / BORD_B);
-  bord.style.transform = "scale(" + s + ")";
-  bordWrap.style.height = (BORD_H * s) + "px";
+  pasmaat = Math.min(1, (bordWrap.clientWidth || BORD_B) / BORD_B);
+  bordWrap.style.height = (BORD_H * pasmaat) + "px";
+  tekenKijk();
 }
 addEventListener("resize", schaalBord);
+
+function tekenKijk(){
+  const s = pasmaat * kijk.z;
+  const w = bordWrap.clientWidth || BORD_B, h = BORD_H * pasmaat;
+  const bw = BORD_B * s, bh = BORD_H * s;
+  kijk.x = bw <= w ? (w - bw)/2 : Math.min(0, Math.max(w - bw, kijk.x));
+  kijk.y = bh <= h ? (h - bh)/2 : Math.min(0, Math.max(h - bh, kijk.y));
+  bord.style.transform = "translate(" + kijk.x.toFixed(1) + "px," + kijk.y.toFixed(1) + "px) scale(" + s + ")";
+}
+
+// zoom rond een punt binnen het venster
+function zoomNaar(nieuweZ, cx, cy){
+  const oudS = pasmaat * kijk.z;
+  kijk.z = Math.min(Z_MAX, Math.max(Z_MIN, nieuweZ));
+  const f = (pasmaat * kijk.z) / oudS;
+  kijk.x = cx - (cx - kijk.x) * f;
+  kijk.y = cy - (cy - kijk.y) * f;
+  tekenKijk();
+}
+
+const vensterPunt = (x,y) => {
+  const r = bordWrap.getBoundingClientRect();
+  return {x: x - r.left, y: y - r.top};
+};
+
+// ── slepen met één vinger, knijpen met twee ──────────────────────
+const vingers = new Map();
+let panStart = null, knijpStart = null, netGepand = false;
+
+bordWrap.addEventListener("pointerdown", e => {
+  if (sleepSoort) return;                       // bezig met zaaien: niet verschuiven
+  vingers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if (vingers.size === 1) {
+    panStart = {x:e.clientX, y:e.clientY, kx:kijk.x, ky:kijk.y, ver:false};
+  } else if (vingers.size === 2) {
+    const [a,b] = [...vingers.values()];
+    const mid = vensterPunt((a.x+b.x)/2, (a.y+b.y)/2);
+    knijpStart = {afstand: Math.hypot(a.x-b.x, a.y-b.y), z: kijk.z, mid};
+    panStart = null;
+    netGepand = true;
+  }
+});
+
+addEventListener("pointermove", e => {
+  if (!vingers.has(e.pointerId)) return;
+  vingers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+  if (knijpStart && vingers.size >= 2) {
+    const [a,b] = [...vingers.values()];
+    const nu2 = Math.hypot(a.x-b.x, a.y-b.y);
+    if (knijpStart.afstand > 10) {
+      zoomNaar(knijpStart.z * (nu2 / knijpStart.afstand), knijpStart.mid.x, knijpStart.mid.y);
+    }
+    return;
+  }
+
+  if (panStart) {
+    const dx = e.clientX - panStart.x, dy = e.clientY - panStart.y;
+    if (!panStart.ver && Math.hypot(dx,dy) > 8) {
+      panStart.ver = true; netGepand = true;
+      bordWrap.classList.add("sleept");
+    }
+    if (panStart.ver) {
+      kijk.x = panStart.kx + dx;
+      kijk.y = panStart.ky + dy;
+      tekenKijk();
+    }
+  }
+});
+
+function vingerWeg(e){
+  vingers.delete(e.pointerId);
+  if (vingers.size < 2) knijpStart = null;
+  if (vingers.size === 0) {
+    panStart = null;
+    bordWrap.classList.remove("sleept");
+    setTimeout(() => { netGepand = false; }, 60);
+  }
+}
+addEventListener("pointerup", vingerWeg);
+addEventListener("pointercancel", vingerWeg);
+
+// een tik die eigenlijk een sleep was, mag niet oogsten of zaaien
+bordWrap.addEventListener("click", e => {
+  if (netGepand) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+
+// muiswiel
+bordWrap.addEventListener("wheel", e => {
+  e.preventDefault();
+  const p = vensterPunt(e.clientX, e.clientY);
+  zoomNaar(kijk.z * (e.deltaY < 0 ? 1.15 : 1/1.15), p.x, p.y);
+}, {passive:false});
+
+// dubbeltik / dubbelklik om in te zoomen
+bordWrap.addEventListener("dblclick", e => {
+  const p = vensterPunt(e.clientX, e.clientY);
+  zoomNaar(kijk.z > 1.4 ? 1 : 2, p.x, p.y);
+});
+
+document.getElementById("zoomIn").addEventListener("click", e => {
+  e.stopPropagation();
+  zoomNaar(kijk.z * 1.35, (bordWrap.clientWidth||BORD_B)/2, BORD_H*pasmaat/2);
+});
+document.getElementById("zoomUit").addEventListener("click", e => {
+  e.stopPropagation();
+  zoomNaar(kijk.z / 1.35, (bordWrap.clientWidth||BORD_B)/2, BORD_H*pasmaat/2);
+});
+document.getElementById("zoomPas").addEventListener("click", e => {
+  e.stopPropagation();
+  kijk.z = 1; tekenKijk();
+});
 
 function bouwBord(){
   bord.innerHTML = "";
@@ -871,16 +1003,32 @@ let gereedschap = "tarwe";
 let sleepSoort = null, laatstePunt = {x:0,y:0}, vorigDoel = null;
 const ghost = document.getElementById("ghost");
 
+let behandeld = new Set(), telZaai = 0, telPloeg = 0, kostZaai = 0, armGemeld = false;
+
 function startSleep(soort, e){
   e.preventDefault();
   kiesGereedschap(soort);
   sleepSoort = soort;
+  behandeld = new Set(); telZaai = 0; telPloeg = 0; kostZaai = 0; armGemeld = false;
   laatstePunt = {x:e.clientX, y:e.clientY};
   ghost.textContent = soort === "ploeg" ? "🚜" : CROPS[soort].emoji;
   ghost.style.display = "block";
   ghost.style.left = e.clientX + "px";
   ghost.style.top  = e.clientY + "px";
   document.body.style.userSelect = "none";
+}
+
+// voert de actie meteen uit op het veld waar je overheen sleept
+function behandelVeld(id){
+  if (behandeld.has(id)) return;
+  behandeld.add(id);
+  if (sleepSoort === "ploeg") {
+    if (ploeg(id, true)) telPloeg++;
+  } else {
+    const uitkomst = plant(id, sleepSoort, true);
+    if (uitkomst === true) { telZaai++; kostZaai += CROPS[sleepSoort].kost; }
+    else if (uitkomst === "arm" && !armGemeld) { armGemeld = true; popup("Te weinig munten", "#E53935"); }
+  }
 }
 
 function doelOnder(x,y){
@@ -892,7 +1040,9 @@ function markeer(doel){
   if (vorigDoel && vorigDoel !== doel) vorigDoel.classList.remove("doel","fout");
   vorigDoel = doel;
   if (!doel) return;
-  const p = state.plots.find(x => x.id === Number(doel.dataset.plotId));
+  const id = Number(doel.dataset.plotId);
+  if (behandeld.has(id)) { doel.classList.remove("doel","fout"); return; }
+  const p = state.plots.find(x => x.id === id);
   let ok = false;
   if (p && !p.gewas) ok = sleepSoort === "ploeg" ? p.staat === "wild" : p.staat === "geploegd";
   doel.classList.toggle("doel", ok);
@@ -904,16 +1054,21 @@ addEventListener("pointermove", e => {
   laatstePunt = {x:e.clientX, y:e.clientY};
   ghost.style.left = e.clientX + "px";
   ghost.style.top  = e.clientY + "px";
-  markeer(doelOnder(e.clientX, e.clientY));
+  const doel = doelOnder(e.clientX, e.clientY);
+  if (doel) behandelVeld(Number(doel.dataset.plotId));
+  markeer(doel);
 }, {passive:true});
 
 function eindigSleep(x,y){
   if (!sleepSoort) return;
   const doel = doelOnder(x,y);
-  if (doel) {
-    const id = Number(doel.dataset.plotId);
-    sleepSoort === "ploeg" ? ploeg(id) : plant(id, sleepSoort);
-  }
+  if (doel) behandelVeld(Number(doel.dataset.plotId));
+
+  if (telZaai === 1) popup(CROPS[sleepSoort].emoji + " gezaaid  −" + kostZaai, "#6D4C41", true);
+  else if (telZaai > 1) popup(telZaai + " velden ingezaaid  −" + kostZaai, "#6D4C41", true);
+  if (telPloeg === 1) popup("Geploegd 🚜", "#6D4C41");
+  else if (telPloeg > 1) popup(telPloeg + " velden geploegd 🚜", "#6D4C41");
+
   if (vorigDoel) vorigDoel.classList.remove("doel","fout");
   vorigDoel = null; sleepSoort = null;
   ghost.style.display = "none";
