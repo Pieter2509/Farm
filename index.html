@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Mijn Boerderij</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#8FD3F4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Boerderij">
+<meta name="description" content="Een rustige boerderij zonder aankopen. Ploegen, zaaien, oogsten, verkopen.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+<style>
+  :root{
+    --lucht:#8FD3F4; --gras:#8CC152; --gras-licht:#AEDD68;
+    --paneel:#FFF8E1; --bruin:#4E342E; --aarde:#6B4A3C;
+    --goud:#FFB300; --groen:#66BB6A; --rood:#E53935;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:'Nunito','SF Pro Rounded',ui-rounded,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+       color:var(--bruin);background:#7CB342;overscroll-behavior:none}
+  #app{max-width:520px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:28px;
+       background:linear-gradient(180deg,var(--lucht) 0%,var(--gras-licht) 110px,var(--gras) 100%);
+       padding-top:env(safe-area-inset-top)}
+
+  .kop{position:sticky;top:0;z-index:50;padding:10px 14px 8px;background:rgba(143,211,244,.94);backdrop-filter:blur(6px)}
+  .kopRij{display:flex;gap:8px;align-items:center}
+  .badge{background:#FFFDE7;border-radius:20px;padding:6px 13px;font-size:15px;font-weight:700;
+         box-shadow:0 2px 0 rgba(0,0,0,.08);display:flex;align-items:center;gap:6px}
+  .munt{width:15px;height:15px;border-radius:50%;flex:none;
+        background:radial-gradient(circle at 32% 30%,#FFE082,#FFB300 60%,#E69100);
+        box-shadow:inset 0 -1px 1px rgba(0,0,0,.25)}
+  .munt.klein{width:12px;height:12px}
+  .kopKnop{margin-left:auto;border:none;background:rgba(255,255,255,.75);border-radius:50%;
+           width:34px;height:34px;font-size:17px;cursor:pointer;font-family:inherit;position:relative}
+  .kopKnop .stip{position:absolute;right:-1px;top:-1px;width:10px;height:10px;border-radius:50%;
+                 background:var(--groen);border:2px solid #fff;display:none}
+  .kopKnop.gekoppeld .stip{display:block}
+  .xpBalk{margin-top:8px;height:16px;background:rgba(255,255,255,.6);border-radius:10px;position:relative;overflow:hidden}
+  .xpVul{height:100%;background:linear-gradient(90deg,#FFD54F,#FFB300);border-radius:10px;transition:width .4s;width:0}
+  .xpTekst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+           font-size:10px;font-weight:800;color:#5D4037}
+
+  .tabs{display:flex;gap:5px;padding:8px 12px 0}
+  .tab{flex:1;border:none;border-radius:14px 14px 0 0;padding:11px 0;font-size:13px;font-weight:800;
+       background:rgba(255,255,255,.45);color:#5D4037;cursor:pointer;font-family:inherit}
+  .tab.actief{background:var(--paneel);color:var(--bruin)}
+  .paneel{background:var(--paneel);margin:0 12px;border-radius:0 0 16px 16px;padding:12px;box-shadow:0 4px 0 rgba(0,0,0,.08)}
+  .verborgen{display:none !important}
+
+  #bordWrap{position:relative;border-radius:14px;overflow:hidden;
+    background:radial-gradient(ellipse at 50% 30%,#B5E271 0%,#8CC152 62%,#7BAF3F 100%);
+    box-shadow:inset 0 2px 12px rgba(0,0,0,.14)}
+  #bord{position:absolute;left:0;top:0;width:500px;height:430px;transform-origin:top left}
+  .laag{position:absolute;width:0;height:0}
+  .laag svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .ruit{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scaleY(.5) rotate(45deg);
+        border-radius:3px;transition:box-shadow .15s,filter .15s}
+  .grond{background:repeating-linear-gradient(0deg,#8D6E63 0 6px,var(--aarde) 6px 11px);
+         border:3px solid #A1887F;cursor:pointer}
+  .grond.wild{background:repeating-linear-gradient(0deg,#8BC34A 0 7px,#7AB03F 7px 14px);border-color:#689F38}
+  .grond.doel{box-shadow:0 0 0 5px #FFD54F;filter:brightness(1.15)}
+  .grond.fout{box-shadow:0 0 0 5px rgba(229,57,53,.75)}
+  .koopRuit{background:rgba(255,255,255,.22);border:3px dashed rgba(255,248,225,.9);cursor:pointer}
+  .weiGrond{background:radial-gradient(ellipse at 50% 40%,#CBEC93 0%,#A5D165 70%);border:3px solid #7CB342}
+  .weiGrond.dicht{filter:grayscale(.55) brightness(.92)}
+
+  .opGrond{position:absolute;left:0;top:0;pointer-events:none}
+  .halm{border-radius:3px 3px 1px 1px;transform-origin:bottom center;transition:height .7s ease,background .7s ease}
+  .kop-vrucht{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:13px;display:none;
+              filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));animation:wieg 2.6s ease-in-out infinite}
+  .rijp .kop-vrucht{display:block}
+  .paal{width:6px;height:16px;border-radius:2px;background:linear-gradient(180deg,#A1887F,#6D4C41);
+        box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .bordje{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font-size:11px;font-weight:900;
+          color:#FFF8E1;white-space:nowrap;pointer-events:none;z-index:500;
+          background:rgba(62,39,35,.4);padding:2px 7px;border-radius:9px}
+  .bordje.klaar{background:var(--goud);color:var(--bruin);padding:0;border-radius:50%;width:27px;height:27px;
+                display:flex;align-items:center;justify-content:center;font-size:15px;
+                box-shadow:0 2px 5px rgba(0,0,0,.35),inset 0 -2px 0 rgba(0,0,0,.12);
+                animation:hup 1s ease-in-out infinite}
+  .hint{position:absolute;left:0;top:0;transform:translate(-50%,-60%);font-size:17px;opacity:.55;
+         pointer-events:none;z-index:90;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+  .bordje:empty{display:none}
+  .koopTekst{position:absolute;left:0;top:0;transform:translate(-50%,-50%);text-align:center;font-size:12px;
+             font-weight:900;color:#FFF8E1;text-shadow:0 1px 3px rgba(0,0,0,.55);pointer-events:none;z-index:200;
+             line-height:1.35;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .dier{position:absolute;left:0;top:0;border:none;background:none;padding:0;line-height:1;font-family:inherit;cursor:default}
+  .dier span.beest{font-size:24px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+  .dier.klaar{cursor:pointer}
+  .dier.klaar span.beest{animation:hup 1s ease-in-out infinite}
+  .bel{position:absolute;left:50%;top:-16px;transform:translateX(-50%);background:#FFF8E1;border-radius:9px;
+       padding:0 4px;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,.25);animation:hup 1s ease-in-out infinite}
+  .rook{animation:rook 4s ease-in-out infinite}
+
+  .riemTitel{font-size:12px;font-weight:800;color:#6D4C41;margin:14px 0 6px}
+  .riem{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+  .item{min-width:76px;flex:none;border:2px solid #D7CCC8;border-radius:12px;background:#fff;padding:8px 6px;
+        cursor:grab;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;
+        touch-action:none;color:inherit}
+  .item.actief{border-color:var(--groen);background:#E8F5E9;box-shadow:0 0 0 2px rgba(102,187,106,.3)}
+  .item.op-slot{opacity:.45}
+  .item .ico{font-size:24px}
+  .item .naam{font-size:12px;font-weight:800}
+  .item .info{font-size:10px;color:#795548;display:flex;align-items:center;gap:3px}
+  .scheiding{width:2px;background:#E0D6C2;border-radius:2px;flex:none}
+
+  .lijst{display:flex;flex-direction:column;gap:10px}
+  .rij{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 12px;border:2px solid #EEE}
+  .rij .titel{font-weight:700}
+  .rij .sub{font-size:12px;color:#6D4C41;display:flex;align-items:center;gap:4px}
+  .knop{border:none;background:var(--groen);color:#fff;font-weight:900;border-radius:10px;padding:9px 12px;
+        cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;gap:5px}
+  .knop:disabled{opacity:.45;cursor:default}
+  .knopLicht{border:2px solid var(--groen);background:#fff;color:#2E7D32;font-weight:900;border-radius:10px;
+             padding:7px 12px;cursor:pointer;font-family:inherit;font-size:13px}
+  .knopGroot{border:none;background:linear-gradient(90deg,#FFB300,#FB8C00);color:#fff;font-weight:900;
+             border-radius:12px;padding:13px;cursor:pointer;font-family:inherit;font-size:15px}
+  .leeg{text-align:center;padding:28px 10px;color:#6D4C41;font-weight:700}
+  .noot{font-size:12px;color:#6D4C41;text-align:center;padding:6px 4px;line-height:1.5}
+  h3{margin:4px 0;font-size:15px}
+
+  #popups{position:fixed;top:88px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+          pointer-events:none;z-index:900}
+  .popup{background:rgba(255,255,255,.96);border-radius:14px;padding:6px 16px;font-weight:800;font-size:15px;
+         box-shadow:0 3px 8px rgba(0,0,0,.15);animation:zweef 1.4s ease-out forwards;display:flex;align-items:center;gap:5px}
+  #ghost{position:fixed;transform:translate(-50%,-50%) scale(1.4);font-size:30px;z-index:950;pointer-events:none;
+         display:none;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:980;display:none;align-items:center;
+           justify-content:center;padding:16px}
+  #overlay.open{display:flex}
+  .kaart{background:var(--paneel);border-radius:18px;padding:18px;max-width:430px;width:100%;max-height:88vh;overflow:auto}
+  .kaart p{font-size:13px;line-height:1.55;color:#5D4037}
+  .kaart hr{border:none;border-top:2px solid #EFE4CC;margin:16px 0}
+  .kaart input,.kaart textarea{width:100%;border-radius:10px;border:2px solid #D7CCC8;padding:9px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#fff;color:inherit}
+  .kaart textarea{height:84px;font-size:11px;resize:vertical}
+  .knopRij{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+  .statusRegel{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px;margin:2px 0 8px}
+  .stipje{width:10px;height:10px;border-radius:50%;background:#BDBDBD;flex:none}
+  .stipje.aan{background:var(--groen)}
+  .code{font-size:20px;font-weight:900;letter-spacing:3px;text-align:center;background:#fff;border:2px dashed #C5A880;
+        border-radius:12px;padding:12px;font-family:ui-monospace,monospace}
+
+  @keyframes hup{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes wieg{0%,100%{transform:translateX(-50%) rotate(-6deg)}50%{transform:translateX(-50%) rotate(6deg)}}
+  @keyframes zweef{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:translateY(0)}80%{opacity:1}
+                   100%{opacity:0;transform:translateY(-14px)}}
+  @keyframes rook{0%{opacity:.55;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(6px,-26px) scale(1.7)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+  button:focus-visible{outline:3px solid #1E88E5;outline-offset:2px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="kop">
+    <div class="kopRij">
+      <div class="badge"><span class="munt"></span><b id="munten">0</b></div>
+      <div class="badge" style="background:#FFF8E1">⭐ <b id="level">1</b></div>
+      <button class="kopKnop" id="opslagKnop" title="Opslaan & synchroniseren">💾<span class="stip"></span></button>
+    </div>
+    <div class="xpBalk"><div class="xpVul" id="xpVul"></div><span class="xpTekst" id="xpTekst"></span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab actief" data-tab="boerderij">🌾 Boerderij</button>
+    <button class="tab" data-tab="schuur">🧺 Schuur</button>
+    <button class="tab" data-tab="winkel">🏪 Winkel</button>
+  </div>
+
+  <div class="paneel">
+    <div id="tab-boerderij">
+      <div id="bordWrap"><div id="bord"></div></div>
+      <div class="riemTitel">Sleep naar een akker — of tik erop</div>
+      <div class="riem" id="riem"></div>
+    </div>
+    <div id="tab-schuur" class="verborgen"><div class="lijst" id="schuurLijst"></div></div>
+    <div id="tab-winkel" class="verborgen"><div class="lijst" id="winkelLijst"></div></div>
+  </div>
+</div>
+
+<div id="popups"></div>
+<div id="ghost"></div>
+
+<div id="overlay">
+  <div class="kaart">
+    <h3>Zelfde boerderij overal</h3>
+    <div class="statusRegel"><span class="stipje" id="syncStip"></span><span id="syncStatus">…</span></div>
+
+    <div id="syncAan">
+      <p>Dit is je boerderijcode. Vul dezelfde code in op je andere apparaat en je speelt
+         daar verder waar je gebleven was.</p>
+      <div class="code" id="codeVak">—</div>
+      <div class="knopRij">
+        <button class="knop" id="kopieerCode">Code kopiëren</button>
+        <button class="knopLicht" id="andereCode">Andere code invullen</button>
+        <button class="knopLicht" id="nuSync">Nu synchroniseren</button>
+      </div>
+    </div>
+
+    <div id="syncUit">
+      <p>Cloudsync staat uit: je boerderij wordt alleen in deze browser bewaard.
+         Zet <code>SYNC_URL</code> bovenin <code>index.html</code> en je telefoon en pc
+         delen automatisch dezelfde boerderij. In het README staat hoe je dat in 5 minuten regelt.</p>
+    </div>
+
+    <hr>
+    <h3>Back-up</h3>
+    <p>Een tekstcode van je hele boerderij. Handig om te bewaren voor je iets verandert.</p>
+    <textarea id="saveVak" readonly spellcheck="false"></textarea>
+    <div class="knopRij">
+      <button class="knop" id="kopieerKnop">Back-up kopiëren</button>
+      <button class="knopLicht" id="plakKnop">Back-up terugzetten</button>
+      <button class="knopLicht" id="linkKnop">Deel-link maken</button>
+    </div>
+
+    <hr>
+    <div class="knopRij">
+      <button class="knopLicht" id="nieuwKnop" style="border-color:#E53935;color:#C62828">Opnieuw beginnen</button>
+    </div>
+    <p id="opslagMelding" style="min-height:18px;font-weight:800"></p>
+    <button class="knopGroot" id="sluitKnop" style="width:100%">Sluiten</button>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════════
+   INSTELLINGEN
+   ═══════════════════════════════════════════════════════════════════ */
+
+// Laat leeg voor "alleen op dit apparaat".
+// Vul je eigen sync-adres in (zie README) om telefoon en pc te koppelen.
+// Bijvoorbeeld: "https://farm-sync.jouwnaam.workers.dev/"
+const SYNC_URL = "";
+
+const SAVE_KEY  = "boerderij";        // NOOIT veranderen: hier staat je voortgang
+const CODE_KEY  = "boerderij-code";   // je persoonlijke boerderijcode
+const SAVE_VERSIE = 1;
+
+/* ═══════════════════════════════════════════════════════════════════
+   1. SPELDATA
+   ═══════════════════════════════════════════════════════════════════ */
+const CROPS = {
+  tarwe:   {naam:"Tarwe",   emoji:"🌾", kost:2,  opbrengst:5,   tijd:15,  xp:2,  level:1,
+            blad:"#7CB342", rijp:"#E3C04B", hoogte:18, breed:3, dicht:7},
+  wortel:  {naam:"Wortel",  emoji:"🥕", kost:4,  opbrengst:10,  tijd:30,  xp:4,  level:2,
+            blad:"#66BB6A", rijp:"#4CAF50", hoogte:13, breed:6, dicht:5},
+  mais:    {naam:"Maïs",    emoji:"🌽", kost:8,  opbrengst:20,  tijd:60,  xp:8,  level:3,
+            blad:"#689F38", rijp:"#7CB342", hoogte:20, breed:7, dicht:4},
+  tomaat:  {naam:"Tomaat",  emoji:"🍅", kost:15, opbrengst:40,  tijd:120, xp:15, level:4,
+            blad:"#4CAF50", rijp:"#43A047", hoogte:15, breed:7, dicht:4},
+  aardbei: {naam:"Aardbei", emoji:"🍓", kost:30, opbrengst:85,  tijd:240, xp:30, level:6,
+            blad:"#43A047", rijp:"#388E3C", hoogte:10, breed:7, dicht:5},
+  pompoen: {naam:"Pompoen", emoji:"🎃", kost:60, opbrengst:180, tijd:480, xp:60, level:8,
+            blad:"#558B2F", rijp:"#689F38", hoogte:11, breed:9, dicht:3},
+};
+
+const ANIMALS = {
+  kip:    {naam:"Kippen",  enkel:"Kip",    emoji:"🐔", product:"🥚", kost:100, opbrengst:15, tijd:60,  xp:5,  level:3},
+  varken: {naam:"Varkens", enkel:"Varken", emoji:"🐷", product:"🍖", kost:250, opbrengst:40, tijd:120, xp:12, level:5},
+  koe:    {naam:"Koeien",  enkel:"Koe",    emoji:"🐄", product:"🥛", kost:500, opbrengst:75, tijd:180, xp:20, level:7},
+};
+
+const PRODUCTS = {};
+for (const [k,c] of Object.entries(CROPS)) PRODUCTS[k] = {naam:c.naam, emoji:c.emoji, prijs:c.opbrengst};
+PRODUCTS.ei    = {naam:"Eieren", emoji:"🥚", prijs:ANIMALS.kip.opbrengst};
+PRODUCTS.vlees = {naam:"Vlees",  emoji:"🍖", prijs:ANIMALS.varken.opbrengst};
+PRODUCTS.melk  = {naam:"Melk",   emoji:"🥛", prijs:ANIMALS.koe.opbrengst};
+const DIER_PRODUCT = {kip:"ei", varken:"vlees", koe:"melk"};
+
+const MAX_PLOTS = 12, MAX_PER_WEI = 6;
+const plotPrijs = n => Math.round(50 * Math.pow(1.7, n - 4));
+const xpVoorLevel = lvl => lvl * 60;
+
+/* ═══════════════════════════════════════════════════════════════════
+   2. OPSLAG & MIGRATIE
+   ═══════════════════════════════════════════════════════════════════ */
+const nieuweBoerderij = () => ({
+  versie: SAVE_VERSIE, bijgewerkt: Date.now(),
+  munten: 25, xp: 0, level: 1,
+  plots: [
+    {id:1, staat:"geploegd", gewas:null},
+    {id:2, staat:"geploegd", gewas:null},
+    {id:3, staat:"wild", gewas:null},
+    {id:4, staat:"wild", gewas:null},
+  ],
+  dieren: [], schuur: {},
+});
+
+// Vult ontbrekende velden aan, zodat oude opgeslagen boerderijen
+// na een update gewoon blijven werken.
+function migreer(oud){
+  const s = Object.assign(nieuweBoerderij(), oud || {});
+  s.versie = SAVE_VERSIE;
+  s.schuur = s.schuur || {};
+  s.dieren = (s.dieren || []).filter(d => ANIMALS[d.type]);
+  s.plots  = (s.plots  || []).map((p,i) => ({
+    id: p.id ?? i+1,
+    staat: p.staat === "wild" ? "wild" : "geploegd",
+    gewas: (p.gewas && CROPS[p.gewas.type]) ? p.gewas : null,
+  }));
+  if (!s.plots.length) s.plots = nieuweBoerderij().plots;
+  s.munten = Math.max(0, Math.floor(s.munten ?? 25));
+  s.level  = Math.max(1, Math.floor(s.level ?? 1));
+  s.xp     = Math.max(0, Math.floor(s.xp ?? 0));
+  s.bijgewerkt = Number(s.bijgewerkt) || Date.now();
+  return s;
+}
+
+function laden(){
+  try {
+    const rauw = localStorage.getItem(SAVE_KEY);
+    if (rauw) return migreer(JSON.parse(rauw));
+  } catch(e){ console.warn("Save lezen mislukt:", e); }
+  return nieuweBoerderij();
+}
+
+let state = laden();
+let bewaarTimer = null;
+
+function bewaar(direct){
+  state.bijgewerkt = Date.now();
+  clearTimeout(bewaarTimer);
+  const doen = () => {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+    catch(e){ console.warn("Opslaan mislukt:", e); }
+    duwNaarCloud();
+  };
+  direct ? doen() : (bewaarTimer = setTimeout(doen, 500));
+}
+
+addEventListener("visibilitychange", () => { if (document.hidden) bewaar(true); else haalUitCloud(); });
+addEventListener("pagehide", () => bewaar(true));
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. CLOUDSYNC (telefoon ↔ pc)
+   ═══════════════════════════════════════════════════════════════════ */
+const syncAan = () => !!SYNC_URL;
+
+function boerderijCode(){
+  let c = localStorage.getItem(CODE_KEY);
+  if (!c) {
+    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    c = Array.from({length:8}, () => letters[Math.floor(Math.random()*letters.length)]).join("");
+    localStorage.setItem(CODE_KEY, c);
+  }
+  return c;
+}
+
+let duwTimer = null, bezig = false;
+
+function duwNaarCloud(){
+  if (!syncAan()) return;
+  clearTimeout(duwTimer);
+  duwTimer = setTimeout(async () => {
+    if (bezig) return;
+    bezig = true;
+    try {
+      await fetch(SYNC_URL + boerderijCode(), {
+        method: "PUT",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(state),
+      });
+      zetSyncStatus("Gesynchroniseerd");
+    } catch(e){ zetSyncStatus("Even geen verbinding"); }
+    bezig = false;
+  }, 2500);
+}
+
+async function haalUitCloud(stil){
+  if (!syncAan()) return;
+  try {
+    const r = await fetch(SYNC_URL + boerderijCode() + "?t=" + Date.now());
+    const data = await r.json();
+    if (!data) { duwNaarCloud(); return; }
+    const ver = migreer(data);
+    if (ver.bijgewerkt > state.bijgewerkt + 1000) {
+      state = ver;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      allesTekenen();
+      if (!stil) popup("Boerderij opgehaald ☁️", "#2E7D32");
+    } else if (state.bijgewerkt > ver.bijgewerkt + 1000) {
+      duwNaarCloud();
+    }
+    zetSyncStatus("Gesynchroniseerd");
+  } catch(e){ zetSyncStatus("Even geen verbinding"); }
+}
+
+function zetSyncStatus(tekst){
+  const s = document.getElementById("syncStatus"), stip = document.getElementById("syncStip");
+  if (!s) return;
+  s.textContent = syncAan() ? tekst : "Alleen op dit apparaat";
+  stip.classList.toggle("aan", syncAan());
+  document.getElementById("opslagKnop").classList.toggle("gekoppeld", syncAan());
+  document.getElementById("syncAan").classList.toggle("verborgen", !syncAan());
+  document.getElementById("syncUit").classList.toggle("verborgen", syncAan());
+  document.getElementById("codeVak").textContent = boerderijCode();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   4. ISOMETRIE
+   ═══════════════════════════════════════════════════════════════════ */
+const iso = z => ({hb: z*0.7071, hh: z*0.3536});
+const naarScherm = (a,b,hb,hh) => ({dx:(a-b)*hb, dy:(a+b)*hh});
+
+const AKKER = 78, A = iso(AKKER), KOLOMMEN = 3, AKKER_X = 262, AKKER_Y = 112;
+const RUIMTE = 1.18;   // beetje gras tussen de akkers
+const WEI = 112, W = iso(WEI), WEI_Y = 358, WEI_X = {kip:88, varken:250, koe:412};
+const DIER_PLEK = [[-.26,-.26],[.26,-.26],[-.26,.26],[.26,.26],[.02,-.02],[-.02,.34]];
+const BORD_B = 500, BORD_H = 430;
+
+const akkerPos = i => {
+  const r = Math.floor(i/KOLOMMEN), c = i % KOLOMMEN;
+  return {x: AKKER_X + (c-r)*A.hb*RUIMTE, y: AKKER_Y + (c+r)*A.hh*RUIMTE};
+};
+
+const nu = () => Date.now();
+const fmtTijd = s => { s = Math.max(0, Math.ceil(s)); return s < 60 ? s+"s" : Math.floor(s/60)+"m "+(s%60)+"s"; };
+const ruis = n => { const x = Math.sin(n*12.9898)*43758.5453; return x - Math.floor(x); };
+const el = (tag, cls, ouder) => { const e = document.createElement(tag); if (cls) e.className = cls; if (ouder) ouder.appendChild(e); return e; };
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. MELDINGEN & XP
+   ═══════════════════════════════════════════════════════════════════ */
+const popupsBox = document.getElementById("popups");
+function popup(tekst, kleur, muntjes){
+  const p = el("div","popup",popupsBox);
+  p.style.color = kleur || "#3E2723";
+  p.textContent = tekst;
+  if (muntjes) p.appendChild(el("span","munt klein"));
+  setTimeout(() => p.remove(), 1400);
+}
+
+function geefXp(hoeveel){
+  state.xp += hoeveel;
+  let omhoog = false;
+  while (state.xp >= xpVoorLevel(state.level)) {
+    state.xp -= xpVoorLevel(state.level);
+    state.level++; omhoog = true;
+    popup("⭐ Level " + state.level + "!", "#F57C00");
+  }
+  if (omhoog) { bouwRiem(); tekenWinkel(); bouwBord(); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. SPELACTIES
+   ═══════════════════════════════════════════════════════════════════ */
+function ploeg(id){
+  const p = state.plots.find(x => x.id === id);
+  if (!p || p.gewas || p.staat !== "wild") return;
+  p.staat = "geploegd";
+  popup("Geploegd 🚜", "#6D4C41");
+  geefXp(1); naVerandering(p);
+}
+
+function plant(id, type){
+  const p = state.plots.find(x => x.id === id), c = CROPS[type];
+  if (!p || !c || p.gewas) return;
+  if (p.staat !== "geploegd") return popup("Eerst ploegen 🚜", "#E53935");
+  if (state.level < c.level)  return popup("Level " + c.level + " nodig 🔒", "#E53935");
+  if (state.munten < c.kost)  return popup("Te weinig munten", "#E53935");
+  state.munten -= c.kost;
+  p.gewas = {type, geplant: nu()};
+  popup(c.emoji + " gezaaid  −" + c.kost, "#6D4C41", true);
+  naVerandering(p);
+}
+
+function oogst(id){
+  const p = state.plots.find(x => x.id === id);
+  if (!p || !p.gewas) return;
+  const c = CROPS[p.gewas.type];
+  if ((nu() - p.gewas.geplant)/1000 < c.tijd) return;
+  state.schuur[p.gewas.type] = (state.schuur[p.gewas.type] || 0) + 1;
+  popup(c.emoji + " naar de schuur  +" + c.xp + " XP", "#2E7D32");
+  p.gewas = null; p.staat = "wild";
+  geefXp(c.xp); naVerandering(p);
+}
+
+function klikAkker(p){
+  if (p.gewas) return oogst(p.id);
+  if (p.staat === "wild") return ploeg(p.id);
+  if (gereedschap === "ploeg") return popup("Al geploegd — kies een zaadje", "#6D4C41");
+  plant(p.id, gereedschap);
+}
+
+function koopAkker(){
+  if (state.plots.length >= MAX_PLOTS) return;
+  const prijs = plotPrijs(state.plots.length);
+  if (state.munten < prijs) return popup("Te weinig munten", "#E53935");
+  state.munten -= prijs;
+  state.plots.push({id: (state.plots[state.plots.length-1]?.id || 0) + 1, staat:"wild", gewas:null});
+  popup("Nieuw stuk land!  −" + prijs, "#6D4C41", true);
+  bouwBord(); tekenKop(); bewaar();
+}
+
+function koopDier(type){
+  const d = ANIMALS[type];
+  if (state.level < d.level) return popup("Level " + d.level + " nodig 🔒", "#E53935");
+  if (state.munten < d.kost) return popup("Te weinig munten", "#E53935");
+  if (state.dieren.filter(x => x.type === type).length >= MAX_PER_WEI) return popup("De wei zit vol", "#E53935");
+  state.munten -= d.kost;
+  state.dieren.push({id: nu() + Math.random(), type, laatste: nu()});
+  popup(d.emoji + " loopt de wei in!", "#2E7D32");
+  bouwBord(); tekenKop(); tekenWinkel(); bewaar();
+}
+
+function verzamel(dier){
+  const d = ANIMALS[dier.type];
+  if ((nu() - dier.laatste)/1000 < d.tijd) return;
+  const key = DIER_PRODUCT[dier.type];
+  state.schuur[key] = (state.schuur[key] || 0) + 1;
+  dier.laatste = nu();
+  popup(d.product + " naar de schuur  +" + d.xp + " XP", "#2E7D32");
+  geefXp(d.xp); tekenKop(); tekenSchuur(); bewaar();
+}
+
+function verkoop(key, aantal){
+  const n = Math.min(aantal, state.schuur[key] || 0);
+  if (n <= 0) return;
+  const geld = n * PRODUCTS[key].prijs;
+  state.munten += geld;
+  state.schuur[key] -= n;
+  if (state.schuur[key] <= 0) delete state.schuur[key];
+  popup("+" + geld, "#2E7D32", true);
+  tekenKop(); tekenSchuur(); bewaar();
+}
+
+function verkoopAlles(){
+  let totaal = 0;
+  for (const [k,n] of Object.entries(state.schuur)) totaal += n * PRODUCTS[k].prijs;
+  if (totaal <= 0) return;
+  state.munten += totaal; state.schuur = {};
+  popup("Alles verkocht!  +" + totaal, "#2E7D32", true);
+  tekenKop(); tekenSchuur(); bewaar();
+}
+
+function naVerandering(plot){
+  const v = velden.get(plot.id);
+  if (v) v.herbouw();
+  tekenKop(); tekenSchuur(); bewaar();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. GEBOUWEN (getekend met SVG, in dezelfde schuine kijkhoek)
+   ═══════════════════════════════════════════════════════════════════ */
+const punt = (x,y) => x.toFixed(1)+","+y.toFixed(1);
+
+// Een blok met puntdak: muren + vier dakvlakken, gezien vanuit dezelfde hoek als de akkers.
+function gebouw({zijde, muur, dak, overstek=1.15, wandL, wandR, dakL, dakR, dakAchter}){
+  const {hb,hh} = iso(zijde);
+  const R=[hb,0], B=[0,hh], L=[-hb,0], T=[0,-hh];
+  const boven = p => [p[0], p[1]-muur];
+  const Rb=boven(R), Bb=boven(B), Lb=boven(L), Tb=boven(T);
+  const o = p => [p[0]*overstek, (p[1]+muur)*overstek - muur];
+  const Ro=o(Rb), Bo=o(Bb), Lo=o(Lb), To=o(Tb);
+  const P=[0, -muur-dak];
+  const vlak = (pts, kleur) =>
+    '<polygon points="' + pts.map(p => punt(p[0],p[1])).join(" ") + '" fill="' + kleur + '"/>';
+
+  return {
+    hb, hh, muur, dak,
+    svg:
+      '<ellipse cx="0" cy="0" rx="' + (hb*1.18).toFixed(1) + '" ry="' + (hh*1.18).toFixed(1) + '" fill="rgba(0,0,0,.13)"/>' +
+      vlak([L,B,Bb,Lb], wandL) +
+      vlak([B,R,Rb,Bb], wandR) +
+      vlak([Lo,To,P], dakAchter) + vlak([To,Ro,P], dakAchter) +
+      vlak([Lo,Bo,P], dakL) + vlak([Bo,Ro,P], dakR),
+    // hulpfuncties om ramen/deuren op de voorgevels te zetten
+    opLinks: (t) => [-hb + hb*t, hh*t],          // langs L → B
+    opRechts:(t) => [hb*t, hh - hh*t],           // langs B → R
+  };
+}
+
+function opening(g, kant, t1, t2, hoog, laag, kleur, randKleur){
+  const f = kant === "links" ? g.opLinks : g.opRechts;
+  const a = f(t1), b = f(t2);
+  const pts = [
+    [a[0], a[1]-laag], [b[0], b[1]-laag],
+    [b[0], b[1]-laag-hoog], [a[0], a[1]-laag-hoog],
+  ];
+  return '<polygon points="' + pts.map(p => punt(p[0],p[1])).join(" ") + '" fill="' + kleur +
+         '" stroke="' + (randKleur||"none") + '" stroke-width="1.5"/>';
+}
+
+function boom(x, y, schaal){
+  const s = schaal || 1;
+  return {
+    x, y,
+    svg: '<ellipse cx="0" cy="0" rx="' + (16*s) + '" ry="' + (7*s) + '" fill="rgba(0,0,0,.14)"/>' +
+         '<rect x="' + (-3*s) + '" y="' + (-26*s) + '" width="' + (6*s) + '" height="' + (26*s) +
+           '" rx="' + (2*s) + '" fill="#8D6E63"/>' +
+         '<circle cx="' + (-8*s) + '" cy="' + (-30*s) + '" r="' + (12*s) + '" fill="#5E9E36"/>' +
+         '<circle cx="' + (8*s)  + '" cy="' + (-28*s) + '" r="' + (11*s) + '" fill="#4F8C2E"/>' +
+         '<circle cx="' + (0*s)  + '" cy="' + (-40*s) + '" r="' + (12*s) + '" fill="#69B33F"/>'
+  };
+}
+
+function bouwGebouwen(){
+  // ── boerderijhuisje ──────────────────────────────────────────────
+  const huis = gebouw({zijde:58, muur:30, dak:30, overstek:1.18,
+    wandL:"#FFF3DF", wandR:"#EBD9BE", dakL:"#E4533F", dakR:"#C43B2C", dakAchter:"#A83326"});
+  let huisSVG = huis.svg;
+  // deur
+  huisSVG += opening(huis, "links", .38, .62, 20, 0, "#8D6E63", "#6D4C41");
+  huisSVG += '<circle cx="' + (huis.opLinks(.58)[0]) + '" cy="' + (huis.opLinks(.58)[1]-10) + '" r="1.6" fill="#FFD54F"/>';
+  // raampjes
+  huisSVG += opening(huis, "links", .12, .28, 10, 14, "#9FD3E8", "#FFF3DF");
+  huisSVG += opening(huis, "rechts", .18, .34, 10, 14, "#8FC6DD", "#EBD9BE");
+  huisSVG += opening(huis, "rechts", .55, .71, 10, 14, "#8FC6DD", "#EBD9BE");
+  // schoorsteen + rook
+  huisSVG += '<rect x="9" y="-74" width="9" height="18" rx="2" fill="#C0533F"/>' +
+             '<rect x="7.5" y="-77" width="12" height="5" rx="2" fill="#8D3F31"/>' +
+             '<circle class="rook" cx="13" cy="-80" r="4" fill="#fff" opacity=".55"/>' +
+             '<circle class="rook" cx="13" cy="-80" r="3" fill="#fff" opacity=".45" style="animation-delay:1.3s"/>' +
+             '<circle class="rook" cx="13" cy="-80" r="3.5" fill="#fff" opacity=".5" style="animation-delay:2.6s"/>';
+  plaatsSVG(76, 96, huisSVG);
+
+  // ── schuur ───────────────────────────────────────────────────────
+  const schuur = gebouw({zijde:52, muur:26, dak:24, overstek:1.16,
+    wandL:"#D9463C", wandR:"#B3352D", dakL:"#F0E6D2", dakR:"#D8C9AC", dakAchter:"#C4B392"});
+  let schuurSVG = schuur.svg;
+  schuurSVG += opening(schuur, "links", .3, .7, 19, 0, "#7E4B33", "#F0E6D2");
+  schuurSVG += '<polygon points="' + [schuur.opLinks(.5)].map(p => punt(p[0]-9,p[1]-19)).join(" ") +
+               " " + punt(schuur.opLinks(.5)[0]+9, schuur.opLinks(.5)[1]-19) +
+               " " + punt(schuur.opLinks(.5)[0], schuur.opLinks(.5)[1]-4) + '" fill="#F0E6D2" opacity=".85"/>';
+  plaatsSVG(424, 100, schuurSVG);
+
+  // ── silo naast de schuur ─────────────────────────────────────────
+  const silo =
+    '<ellipse cx="0" cy="0" rx="15" ry="7" fill="rgba(0,0,0,.13)"/>' +
+    '<path d="M -12,-2 L -12,-48 A 12,7 0 0 1 12,-48 L 12,-2 A 12,6 0 0 1 -12,-2 Z" fill="#C9CFD4"/>' +
+    '<path d="M 0,-2 L 0,-48 A 12,7 0 0 1 12,-48 L 12,-2 A 12,6 0 0 1 0,-2 Z" fill="#A8B0B6"/>' +
+    '<path d="M -12,-48 A 12,7 0 0 1 12,-48 L 0,-64 Z" fill="#8E9AA3"/>' +
+    '<ellipse cx="0" cy="-48" rx="12" ry="7" fill="#DCE2E6"/>' +
+    '<path d="M -12,-48 L 0,-66 L 12,-48 A 12,7 0 0 0 -12,-48 Z" fill="#B0453A"/>';
+  plaatsSVG(470, 132, silo);
+
+  // ── bomen & struiken ─────────────────────────────────────────────
+  [boom(160,44,.85), boom(342,40,.8), boom(30,196,.7), boom(486,232,.75)]
+    .forEach(b => plaatsSVG(b.x, b.y, b.svg));
+
+  // ── bloemetjes in het gras ───────────────────────────────────────
+  const bloemen = [[196,308],[300,318],[128,330],[372,326],[248,66],[54,300],[440,300]];
+  bloemen.forEach(([x,y],i) => {
+    const kleur = ["#FFD54F","#FF8A80","#FFF"][i % 3];
+    plaatsSVG(x, y,
+      '<circle cx="0" cy="0" r="2.6" fill="' + kleur + '"/>' +
+      '<circle cx="6" cy="3" r="2.2" fill="' + kleur + '"/>' +
+      '<circle cx="-5" cy="4" r="2" fill="' + kleur + '"/>');
+  });
+}
+
+function plaatsSVG(x, y, inhoud){
+  const laag = el("div","laag",bord);
+  laag.style.cssText = "left:"+x+"px;top:"+y+"px;z-index:"+Math.round(y);
+  laag.innerHTML = '<svg width="1" height="1">' + inhoud + '</svg>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. HET BORD
+   ═══════════════════════════════════════════════════════════════════ */
+const bord = document.getElementById("bord");
+const bordWrap = document.getElementById("bordWrap");
+const velden = new Map();
+let weien = [];
+
+function schaalBord(){
+  const s = Math.min(1, (bordWrap.clientWidth || BORD_B) / BORD_B);
+  bord.style.transform = "scale(" + s + ")";
+  bordWrap.style.height = (BORD_H * s) + "px";
+}
+addEventListener("resize", schaalBord);
+
+function bouwBord(){
+  bord.innerHTML = "";
+  velden.clear();
+  weien = [];
+
+  bouwGebouwen();
+
+  state.plots.forEach((p,i) => bouwAkker(p, akkerPos(i)));
+
+  if (state.plots.length < MAX_PLOTS) {
+    const pos = akkerPos(state.plots.length);
+    const laag = el("div","laag",bord);
+    laag.style.cssText = "left:"+pos.x+"px;top:"+pos.y+"px;z-index:"+Math.round(pos.y);
+    const ruit = el("div","ruit koopRuit",laag);
+    ruit.style.width = ruit.style.height = AKKER + "px";
+    ruit.addEventListener("click", koopAkker);
+    const t = el("div","koopTekst",laag);
+    t.innerHTML = "<span>＋ land</span>";
+    const prijsRij = el("span","",t);
+    prijsRij.style.cssText = "display:flex;align-items:center;gap:4px";
+    prijsRij.appendChild(el("span","munt klein"));
+    prijsRij.appendChild(document.createTextNode(plotPrijs(state.plots.length)));
+  }
+
+  for (const type of Object.keys(ANIMALS)) bouwWei(type);
+
+  schaalBord();
+  tik();
+}
+
+function bouwAkker(plot, pos){
+  const laag = el("div","laag",bord);
+  laag.style.cssText = "left:"+pos.x+"px;top:"+pos.y+"px;z-index:"+Math.round(pos.y);
+
+  const ruit = el("div","ruit grond",laag);
+  ruit.style.width = ruit.style.height = AKKER + "px";
+  ruit.dataset.plotId = plot.id;
+  ruit.addEventListener("click", () => klikAkker(plot));
+
+  const bordje = el("div","bordje",laag);
+
+  const hint = el("div","hint",laag);   // klein icoontje midden op een leeg veld
+
+  let halmen = [], onkruid = [];
+  let vorigeHoogte = -1, vorigKlaar = null;
+
+  function leegmaken(){
+    halmen.forEach(h => h.wrap.remove());
+    onkruid.forEach(o => o.remove());
+    halmen = []; onkruid = [];
+  }
+
+  function herbouw(){
+    leegmaken();
+    vorigeHoogte = -1; vorigKlaar = null;
+    ruit.classList.toggle("wild", plot.staat === "wild" && !plot.gewas);
+
+    if (!plot.gewas && plot.staat === "wild") {
+      for (let i = 0; i < 5; i++) {
+        const {dx,dy} = naarScherm((ruis(plot.id*7+i)-.5)*.7, (ruis(plot.id*31+i)-.5)*.7, A.hb, A.hh);
+        const s = el("span","opGrond",laag);
+        s.textContent = "🌿";
+        s.style.fontSize = "15px";
+        s.style.zIndex = 100 + Math.round(dy);
+        s.style.transform = "translate(calc(-50% + "+dx+"px), calc(-90% + "+dy+"px))";
+        onkruid.push(s);
+      }
+    }
+
+    if (plot.gewas) {
+      const c = CROPS[plot.gewas.type], n = c.dicht, marge = 0.40;
+      const lijst = [];
+      for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) {
+        const a = -marge + 2*marge*(n===1 ? .5 : k/(n-1));
+        const b = -marge + 2*marge*(n===1 ? .5 : r/(n-1));
+        const j = r*n + k;
+        const {dx,dy} = naarScherm(a,b,A.hb,A.hh);
+        lijst.push({j, dx: dx + (ruis(plot.id*91+j)-.5)*6, dy: dy + (ruis(plot.id*57+j)-.5)*3});
+      }
+      lijst.sort((p,q) => p.dy - q.dy);
+      for (const {j,dx,dy} of lijst) {
+        const wrap = el("div","opGrond",laag);
+        wrap.style.zIndex = 100 + Math.round(dy);
+        wrap.style.transform = "translate(calc(-50% + "+dx+"px), calc(-100% + "+dy+"px))";
+        const halm = el("div","halm",wrap);
+        halm.style.width = c.breed + "px";
+        halm.style.borderRadius = c.breed+"px "+c.breed+"px 1px 1px";
+        halm.style.transform = "rotate(" + ((ruis(j*3.7+plot.id)-.5)*10) + "deg)";
+        const vrucht = el("span","kop-vrucht",wrap);
+        vrucht.textContent = c.emoji;
+        vrucht.style.animationDelay = ((j % 6) * .18) + "s";
+        halmen.push({wrap, halm});
+      }
+    }
+    tikVeld();
+  }
+
+  function tikVeld(){
+    if (plot.gewas) {
+      const c = CROPS[plot.gewas.type];
+      const groei = Math.min(1, ((nu() - plot.gewas.geplant)/1000) / c.tijd);
+      const klaar = groei >= 1;
+      const h = Math.round(c.hoogte * (0.18 + 0.82*groei));
+      if (h !== vorigeHoogte || klaar !== vorigKlaar) {
+        const kleur = "linear-gradient(180deg," + (klaar ? c.rijp : c.blad) + " 0%,#4C7A28 100%)";
+        for (const {wrap, halm} of halmen) {
+          halm.style.height = h + "px";
+          halm.style.background = kleur;
+          wrap.classList.toggle("rijp", klaar);
+        }
+        vorigeHoogte = h; vorigKlaar = klaar;
+      }
+      bordje.textContent = klaar ? "🧺" : fmtTijd(c.tijd - (nu() - plot.gewas.geplant)/1000);
+      bordje.title = klaar ? "Oogsten" : "";
+      bordje.classList.toggle("klaar", klaar);
+    } else {
+      bordje.textContent = "";
+      bordje.classList.remove("klaar");
+    }
+    hint.textContent = plot.gewas ? "" : (plot.staat === "wild" ? "🚜" : "🌱");
+  }
+
+  velden.set(plot.id, {herbouw, tik: tikVeld});
+  herbouw();
+}
+
+function bouwWei(type){
+  const d = ANIMALS[type];
+  const laag = el("div","laag",bord);
+  laag.style.cssText = "left:"+WEI_X[type]+"px;top:"+WEI_Y+"px;z-index:"+Math.round(WEI_Y);
+
+  const ruit = el("div","ruit weiGrond",laag);
+  ruit.style.width = ruit.style.height = WEI + "px";
+
+  [[.5,-.5],[.5,.5],[-.5,.5],[-.5,-.5]].forEach(([a,b]) => {
+    const {dx,dy} = naarScherm(a,b,W.hb,W.hh);
+    const paal = el("div","opGrond paal",laag);
+    paal.style.zIndex = 100 + Math.round(dy);
+    paal.style.transform = "translate(calc(-50% + "+dx+"px), calc(-100% + "+dy+"px))";
+  });
+
+  const slot = el("div","opGrond",laag);
+  slot.textContent = "🔒";
+  slot.style.fontSize = "20px";
+  slot.style.opacity = ".75";
+  slot.style.zIndex = "200";
+  slot.style.transform = "translate(-50%,-70%)";
+
+  const bordje = el("div","bordje",laag);
+  bordje.style.transform = "translate(-50%,0)";
+  bordje.style.top = (W.hh + 8) + "px";
+
+  const knoppen = [];
+  state.dieren.filter(x => x.type === type).slice(0, MAX_PER_WEI).forEach((dier,i) => {
+    const [a,b] = DIER_PLEK[i % DIER_PLEK.length];
+    const {dx,dy} = naarScherm(a,b,W.hb,W.hh);
+    const knop = el("button","dier",laag);
+    knop.style.zIndex = 150 + Math.round(dy);
+    knop.style.transform = "translate(calc(-50% + "+dx+"px), calc(-100% + "+dy+"px))";
+    const beest = el("span","beest",knop);
+    beest.textContent = d.emoji;
+    const bel = el("span","bel",knop);
+    bel.textContent = d.product;
+    bel.style.display = "none";
+    knop.addEventListener("click", () => verzamel(dier));
+    knoppen.push({dier, knop, bel});
+  });
+
+  function tikWei(){
+    const dicht = state.level < d.level;
+    ruit.classList.toggle("dicht", dicht);
+    slot.style.display = dicht ? "block" : "none";
+    const aantal = state.dieren.filter(x => x.type === type).length;
+    bordje.textContent = dicht ? d.naam + " · lvl " + d.level
+                               : d.naam + (aantal ? " (" + aantal + ")" : " — leeg");
+    for (const {dier, knop, bel} of knoppen) {
+      knop.style.display = dicht ? "none" : "block";
+      const klaar = (nu() - dier.laatste)/1000 >= d.tijd;
+      knop.classList.toggle("klaar", klaar);
+      bel.style.display = klaar ? "block" : "none";
+    }
+  }
+
+  weien.push(tikWei);
+  tikWei();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   9. SLEPEN
+   ═══════════════════════════════════════════════════════════════════ */
+let gereedschap = "tarwe";
+let sleepSoort = null, laatstePunt = {x:0,y:0}, vorigDoel = null;
+const ghost = document.getElementById("ghost");
+
+function startSleep(soort, e){
+  e.preventDefault();
+  kiesGereedschap(soort);
+  sleepSoort = soort;
+  laatstePunt = {x:e.clientX, y:e.clientY};
+  ghost.textContent = soort === "ploeg" ? "🚜" : CROPS[soort].emoji;
+  ghost.style.display = "block";
+  ghost.style.left = e.clientX + "px";
+  ghost.style.top  = e.clientY + "px";
+  document.body.style.userSelect = "none";
+}
+
+function doelOnder(x,y){
+  const e = document.elementFromPoint(x,y);
+  return e && e.closest("[data-plot-id]");
+}
+
+function markeer(doel){
+  if (vorigDoel && vorigDoel !== doel) vorigDoel.classList.remove("doel","fout");
+  vorigDoel = doel;
+  if (!doel) return;
+  const p = state.plots.find(x => x.id === Number(doel.dataset.plotId));
+  let ok = false;
+  if (p && !p.gewas) ok = sleepSoort === "ploeg" ? p.staat === "wild" : p.staat === "geploegd";
+  doel.classList.toggle("doel", ok);
+  doel.classList.toggle("fout", !ok);
+}
+
+addEventListener("pointermove", e => {
+  if (!sleepSoort) return;
+  laatstePunt = {x:e.clientX, y:e.clientY};
+  ghost.style.left = e.clientX + "px";
+  ghost.style.top  = e.clientY + "px";
+  markeer(doelOnder(e.clientX, e.clientY));
+}, {passive:true});
+
+function eindigSleep(x,y){
+  if (!sleepSoort) return;
+  const doel = doelOnder(x,y);
+  if (doel) {
+    const id = Number(doel.dataset.plotId);
+    sleepSoort === "ploeg" ? ploeg(id) : plant(id, sleepSoort);
+  }
+  if (vorigDoel) vorigDoel.classList.remove("doel","fout");
+  vorigDoel = null; sleepSoort = null;
+  ghost.style.display = "none";
+  document.body.style.userSelect = "";
+}
+addEventListener("pointerup", e => eindigSleep(e.clientX ?? laatstePunt.x, e.clientY ?? laatstePunt.y));
+addEventListener("pointercancel", () => eindigSleep(-1,-1));
+
+function kiesGereedschap(soort){
+  gereedschap = soort;
+  document.querySelectorAll("#riem .item").forEach(b => b.classList.toggle("actief", b.dataset.soort === soort));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   10. SCHERMEN
+   ═══════════════════════════════════════════════════════════════════ */
+const riem = document.getElementById("riem");
+function bouwRiem(){
+  riem.innerHTML = "";
+  const p = el("button","item",riem);
+  p.dataset.soort = "ploeg";
+  p.innerHTML = '<span class="ico">🚜</span><span class="naam">Ploeg</span><span class="info">gratis</span>';
+  riem.appendChild(el("div","scheiding"));
+
+  for (const [k,c] of Object.entries(CROPS)) {
+    const opSlot = state.level < c.level;
+    const b = el("button","item" + (opSlot ? " op-slot" : ""), riem);
+    b.dataset.soort = k;
+    b.innerHTML = '<span class="ico">' + (opSlot ? "🔒" : c.emoji) + '</span><span class="naam">' + c.naam + "</span>";
+    const info = el("span","info",b);
+    if (opSlot) info.textContent = "lvl " + c.level;
+    else {
+      info.appendChild(document.createTextNode(c.kost));
+      info.appendChild(el("span","munt klein"));
+      info.appendChild(document.createTextNode("· " + fmtTijd(c.tijd)));
+    }
+  }
+
+  riem.querySelectorAll(".item").forEach(b => {
+    const soort = b.dataset.soort;
+    if (soort !== "ploeg" && state.level < CROPS[soort].level) return;
+    b.addEventListener("pointerdown", e => startSleep(soort, e));
+    b.addEventListener("click", () => kiesGereedschap(soort));
+  });
+  const geldig = gereedschap === "ploeg" || (CROPS[gereedschap] && state.level >= CROPS[gereedschap].level);
+  kiesGereedschap(geldig ? gereedschap : "tarwe");
+}
+
+function tekenKop(){
+  document.getElementById("munten").textContent = state.munten;
+  document.getElementById("level").textContent = state.level;
+  const nodig = xpVoorLevel(state.level);
+  document.getElementById("xpVul").style.width = Math.min(100, state.xp/nodig*100) + "%";
+  document.getElementById("xpTekst").textContent = state.xp + " / " + nodig + " XP";
+}
+
+const schuurLijst = document.getElementById("schuurLijst");
+function tekenSchuur(){
+  schuurLijst.innerHTML = "";
+  const items = Object.entries(state.schuur).filter(([,n]) => n > 0);
+  if (!items.length) {
+    el("div","leeg",schuurLijst).textContent = "De schuur is leeg. Oogst gewassen of haal producten bij je dieren op! 🧺";
+    return;
+  }
+  let totaal = 0;
+  for (const [k,n] of items) {
+    totaal += n * PRODUCTS[k].prijs;
+    const rij = el("div","rij",schuurLijst);
+    const ico = el("span","",rij); ico.style.fontSize = "28px"; ico.textContent = PRODUCTS[k].emoji;
+    const mid = el("div","",rij); mid.style.flex = "1";
+    el("div","titel",mid).textContent = PRODUCTS[k].naam + " × " + n;
+    const sub = el("div","sub",mid);
+    sub.appendChild(document.createTextNode(PRODUCTS[k].prijs));
+    sub.appendChild(el("span","munt klein"));
+    sub.appendChild(document.createTextNode("per stuk"));
+    const een = el("button","knopLicht",rij); een.textContent = "1";
+    een.addEventListener("click", () => verkoop(k,1));
+    const alle = el("button","knop",rij); alle.textContent = "alle " + n;
+    alle.addEventListener("click", () => verkoop(k,n));
+  }
+  const knop = el("button","knopGroot",schuurLijst);
+  knop.textContent = "🧺 Alles verkopen — " + totaal;
+  knop.appendChild(el("span","munt klein"));
+  knop.addEventListener("click", verkoopAlles);
+}
+
+const winkelLijst = document.getElementById("winkelLijst");
+function tekenWinkel(){
+  winkelLijst.innerHTML = "";
+  el("h3","",winkelLijst).textContent = "Dieren voor in de wei";
+  for (const [k,d] of Object.entries(ANIMALS)) {
+    const opSlot = state.level < d.level;
+    const aantal = state.dieren.filter(x => x.type === k).length;
+    const rij = el("div","rij",winkelLijst);
+    const ico = el("span","",rij); ico.style.fontSize = "28px"; ico.textContent = d.emoji;
+    const mid = el("div","",rij); mid.style.flex = "1";
+    el("div","titel",mid).innerHTML = d.enkel +
+      ' <span style="color:#8D6E63;font-weight:600">(' + aantal + "/" + MAX_PER_WEI + " in de wei)</span>";
+    const sub = el("div","sub",mid);
+    sub.appendChild(document.createTextNode(d.product + " elke " + fmtTijd(d.tijd) + " → " + d.opbrengst));
+    sub.appendChild(el("span","munt klein"));
+    const knop = el("button","knop",rij);
+    knop.disabled = opSlot;
+    if (opSlot) knop.textContent = "🔒 lvl " + d.level;
+    else { knop.appendChild(document.createTextNode(d.kost)); knop.appendChild(el("span","munt klein")); }
+    knop.addEventListener("click", () => koopDier(k));
+  }
+  el("div","noot",winkelLijst).textContent =
+    "Alles koop je met munten die je zelf verdient. Geen echte kosten, nooit. 🌻";
+}
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("actief", x === t));
+  ["boerderij","schuur","winkel"].forEach(naam =>
+    document.getElementById("tab-"+naam).classList.toggle("verborgen", naam !== t.dataset.tab));
+  if (t.dataset.tab === "boerderij") schaalBord();
+}));
+
+/* ═══════════════════════════════════════════════════════════════════
+   11. OPSLAG-SCHERM
+   ═══════════════════════════════════════════════════════════════════ */
+const overlay = document.getElementById("overlay");
+const saveVak = document.getElementById("saveVak");
+const melding = document.getElementById("opslagMelding");
+
+const codeer   = obj => btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+const decodeer = txt => JSON.parse(decodeURIComponent(escape(atob(txt.trim()))));
+
+function zeg(t){ melding.textContent = t; }
+
+document.getElementById("opslagKnop").addEventListener("click", () => {
+  bewaar(true);
+  saveVak.value = codeer(state);
+  zeg(""); zetSyncStatus("Gesynchroniseerd");
+  overlay.classList.add("open");
+});
+document.getElementById("sluitKnop").addEventListener("click", () => overlay.classList.remove("open"));
+overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
+
+document.getElementById("kopieerCode").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(boerderijCode()); zeg("Code gekopieerd ✅"); }
+  catch(e){ zeg("Kopiëren lukt niet — schrijf de code over."); }
+});
+
+document.getElementById("andereCode").addEventListener("click", async () => {
+  const c = prompt("Vul de boerderijcode van je andere apparaat in:");
+  if (!c) return;
+  localStorage.setItem(CODE_KEY, c.trim().toUpperCase());
+  zetSyncStatus("Ophalen…");
+  state.bijgewerkt = 0;              // laat de cloudversie winnen
+  await haalUitCloud();
+  zeg("Gekoppeld ✅");
+});
+
+document.getElementById("nuSync").addEventListener("click", async () => {
+  zeg("Bezig…"); await haalUitCloud(); duwNaarCloud(); zeg("Klaar ✅");
+});
+
+document.getElementById("kopieerKnop").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(saveVak.value); zeg("Back-up gekopieerd ✅"); }
+  catch(e){ saveVak.removeAttribute("readonly"); saveVak.select(); zeg("Selecteer en kopieer handmatig."); }
+});
+
+document.getElementById("plakKnop").addEventListener("click", () => {
+  const code = prompt("Plak hier je back-upcode:");
+  if (!code) return;
+  try {
+    state = migreer(decodeer(code));
+    bewaar(true); allesTekenen(); zeg("Boerderij teruggezet ✅");
+  } catch(e){ zeg("Die code klopt niet ❌"); }
+});
+
+document.getElementById("linkKnop").addEventListener("click", async () => {
+  const link = location.origin + location.pathname + "#save=" + codeer(state);
+  try { await navigator.clipboard.writeText(link); zeg("Link gekopieerd — open 'm op je andere apparaat ✅"); }
+  catch(e){ saveVak.value = link; saveVak.removeAttribute("readonly"); saveVak.select(); zeg("Kopieer de link hierboven."); }
+});
+
+document.getElementById("nieuwKnop").addEventListener("click", () => {
+  if (!confirm("Alles wissen en opnieuw beginnen?")) return;
+  state = nieuweBoerderij();
+  bewaar(true); allesTekenen(); zeg("Nieuwe boerderij gestart 🌱");
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   12. START
+   ═══════════════════════════════════════════════════════════════════ */
+function tik(){
+  for (const v of velden.values()) v.tik();
+  for (const w of weien) w();
+}
+
+function allesTekenen(){
+  tekenKop(); bouwRiem(); bouwBord(); tekenSchuur(); tekenWinkel();
+}
+
+// Boerderij uit een deel-link overnemen
+if (location.hash.startsWith("#save=")) {
+  try {
+    const binnen = migreer(decodeer(location.hash.slice(6)));
+    if (confirm("Een gedeelde boerderij openen? Je huidige boerderij op dit apparaat wordt vervangen.")) {
+      state = binnen;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    }
+  } catch(e){ console.warn("Deel-link klopt niet"); }
+  history.replaceState(null, "", location.pathname);
+}
+
+allesTekenen();
+zetSyncStatus("Verbinden…");
+haalUitCloud(true);
+
+setInterval(tik, 500);
+setInterval(() => bewaar(), 10000);
+setInterval(() => { if (!document.hidden) haalUitCloud(true); }, 60000);
+
+})();
+</script>
+</body>
+</html>
